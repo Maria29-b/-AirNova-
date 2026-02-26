@@ -8,6 +8,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.model_selection import cross_val_score
+
 
 
 # CHARGEMENT ET PRÉTRAITEMENT DES DONNÉES
@@ -291,3 +293,65 @@ COHÉRENCE AVEC LES PARTIES 2 ET 3:
     plt.savefig('feature_importance.png', dpi=150, bbox_inches='tight')
     plt.close()
     print("\nGraphique d'importance des features enregistré: feature_importance.png")
+
+# AMÉLIORATION DU MODÈLE
+
+# Techniques d'amélioration
+print("\n---  Techniques d'amélioration ---")
+
+# Analyse du déséquilibre de classes
+class_distribution = y.value_counts()
+print(f"\nDistribution des classes:")
+print(f"  - Non retardés (0): {class_distribution[0]} ({class_distribution[0]/len(y)*100:.1f}%)")
+print(f"  - Retardés (1): {class_distribution[1]} ({class_distribution[1]/len(y)*100:.1f}%)")
+
+# Application: Random Forest avec class_weight='balanced'
+rf_balanced = RandomForestClassifier(
+    n_estimators=100, 
+    random_state=42,
+    class_weight='balanced',
+    max_depth=10,
+    min_samples_split=5,
+    min_samples_leaf=2
+)
+
+rf_balanced.fit(X_train, y_train)
+y_pred_rf_balanced = rf_balanced.predict(X_test)
+
+metrics_rf_balanced = calculate_metrics(y_test, y_pred_rf_balanced, 'RF Équilibré')
+
+print("\nComparaison des métriques:")
+print(f"RF Original - F1: {metrics_rf['F1-Score']:.4f}, Recall: {metrics_rf['Recall']:.4f}")
+print(f"RF Équilibré - F1: {metrics_rf_balanced['F1-Score']:.4f}, Recall: {metrics_rf_balanced['Recall']:.4f}")
+
+#  Validation croisée à 5 plis
+print("\n---  Validation croisée à 5 plis ---")
+
+
+best_model_cv = RandomForestClassifier(
+    n_estimators=100, 
+    random_state=42,
+    class_weight='balanced',
+    max_depth=10,
+    min_samples_split=5,
+    min_samples_leaf=2
+)
+
+cv_scores = cross_val_score(best_model_cv, X, y, cv=5, scoring='f1')
+
+print(f"\nF1-Score par pli: {cv_scores}")
+print(f"Moyenne: {cv_scores.mean():.4f}")
+print(f"Écart-type: {cv_scores.std():.4f}")
+
+# Graphique validation croisée
+plt.figure(figsize=(10, 6))
+plt.bar(range(1, 6), cv_scores, color='steelblue', edgecolor='black')
+plt.axhline(cv_scores.mean(), color='red', linestyle='--', linewidth=2, label=f'Moyenne: {cv_scores.mean():.4f}')
+plt.xlabel('Pli')
+plt.ylabel('F1-Score')
+plt.title('Validation croisée à 5 plis')
+plt.legend()
+plt.tight_layout()
+plt.savefig('validation_croisee.png', dpi=150)
+plt.close()
+print("\nGraphique: validation_croisee.png")
